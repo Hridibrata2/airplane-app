@@ -1,0 +1,35 @@
+.header{
+    background-color: #f4e9e1;
+    color: #333;
+    height: 80px;
+    border-radius: 10px;
+    margin: 10px 20px;
+    width: auto;
+}
+
+.title{
+    font-size: 20px;
+    color: #333;
+    display: inline-flex;
+    padding: 25px 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.subtitle{
+    font-size: 20px;
+    color: #333;
+    text-align: center;
+   justify-content: center;
+   align-items: center;
+    display: inline-flex;
+}
+
+.search-bar{
+    display: inline-flex;
+    height: 40px;
+    border-radius: 5px;
+    justify-content: center;
+    align-items: center;
+
+}
