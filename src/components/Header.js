@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Header.css';
 
-const Header = ({ handleSearch, loading }) => {
+const Header = ({ loading }) => {
   const [searchIP, setSearchIP] = useState('');
   const [error, setError] = useState(null);
 
