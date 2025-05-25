@@ -27,7 +27,7 @@ export const LocationProvider = ({ children }) => {
           lat: data.lat,
           lon: data.lon,
         };
-        console.log('Auto-fetched Location:', ipData);
+        console.log(ipData);
         setLocation(ipData);
       } else {
         setError('Could not retrieve location');
