@@ -2,7 +2,7 @@ import { useLocation } from './LocationProvider';
 import './Header.css';
 
 const Header = () => {
-  const { loading, error } = useLocation();
+  const { location, loading, error } = useLocation();
 
   return (
     <div className="App-header">
