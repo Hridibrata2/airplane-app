@@ -17,7 +17,7 @@ const AirportList = () => {
 
       try {
         const res = await fetch(
-          `https://api.aviationstack.com/v1/airports?access_key=a196c7ddd1fd277252f10ee2f18049f8`
+          `https://api.aviationstack.com/v1/airports?access_key=${API_KEY}&city=${encodeURIComponent(location.city)}&country_name=${encodeURIComponent(location.country)}`
         );
         const data = await res.json();
 
