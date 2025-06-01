@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from './LocationProvider';
+import { useLocation } from '../components/LocationProvider';
 
-const API_KEY = process.env.REACT_APP_AVIATIONSTACK_KEY;
+const API_KEY = process.env.REACT_APP_AVIATIONSTACK_KEY ?? '';
 
 const AirportList = () => {
   const { location, loading, error } = useLocation();
@@ -13,22 +13,27 @@ const AirportList = () => {
 
   useEffect(() => {
     const fetchAirports = async () => {
-      if (!location) return;
+      if (!location || !API_KEY) return;
 
       try {
         const res = await fetch(
-          `http://api.aviationstack.com/v1/airports?access_key=${API_KEY}&search=${location.city}`
+          `https://api.aviationstack.com/v1/airports?access_key=a196c7ddd1fd277252f10ee2f18049f8`
         );
         const data = await res.json();
 
-        if (data.data && data.data.length > 0) {
+        if (data.data?.length > 0) {
           setAirports(data.data);
           setSelectedAirport(data.data[0]);
+          setAirportError(null);
         } else {
-          setAirportError('No airports found near your location.');
+          setAirportError(`No airports found for ${location.city}.`);
+          setAirports([]);
+          setSelectedAirport(null);
         }
       } catch (err) {
         setAirportError('Failed to fetch airport data.');
+        setAirports([]);
+        setSelectedAirport(null);
       }
     };
 
@@ -37,17 +42,17 @@ const AirportList = () => {
 
   useEffect(() => {
     const fetchFlights = async () => {
-      if (!selectedAirport?.iata_code) return;
+      if (!selectedAirport?.iata_code || !API_KEY) return;
 
       setFlightLoading(true);
       try {
         const res = await fetch(
-          `http://api.aviationstack.com/v1/flights?access_key=${API_KEY}&dep_iata=${selectedAirport.iata_code}`
+          `https://api.aviationstack.com/v1/flights?access_key=${API_KEY}&dep_iata=${selectedAirport.iata_code}`
         );
         const data = await res.json();
 
         if (data.data) {
-          setFlights(data.data.slice(0, 10)); 
+          setFlights(data.data.slice(0, 10));
         } else {
           setFlights([]);
         }
@@ -62,21 +67,21 @@ const AirportList = () => {
     fetchFlights();
   }, [selectedAirport]);
 
-  if (loading) return <p>Loading location...</p>;
+  if (!API_KEY) return <p>Error: Missing AviationStack API key.</p>;
+  if (loading) return <p>Loading your location...</p>;
   if (error) return <p>Error: {error}</p>;
   if (airportError) return <p>{airportError}</p>;
 
   return (
     <div style={{ padding: '20px' }}>
       <h2>
-        Airports near {location?.city}, {location?.country}
+        Airports near {location?.city}, {location?.country} ({airports.length})
       </h2>
 
-      {/* Airport Tabs */}
       <div style={{ display: 'flex', gap: '10px', margin: '10px 0', flexWrap: 'wrap' }}>
         {airports.map((airport) => (
           <button
-            key={airport.iata_code || airport.airport_name}
+            key={`${airport.iata_code || 'no-code'}-${airport.airport_name}`}
             onClick={() => setSelectedAirport(airport)}
             style={{
               padding: '8px 12px',
@@ -106,58 +111,46 @@ const AirportList = () => {
           }}
         >
           <h3>{selectedAirport.airport_name}</h3>
-          <p>
-            <strong>IATA:</strong> {selectedAirport.iata_code || 'N/A'}
-          </p>
-          <p>
-            <strong>ICAO:</strong> {selectedAirport.icao_code || 'N/A'}
-          </p>
-          <p>
-            <strong>City:</strong> {selectedAirport.city || 'N/A'}
-          </p>
-          <p>
-            <strong>Country:</strong> {selectedAirport.country_name || 'N/A'}
-          </p>
+          <p><strong>IATA:</strong> {selectedAirport.iata_code || 'N/A'}</p>
+          <p><strong>ICAO:</strong> {selectedAirport.icao_code || 'N/A'}</p>
+          <p><strong>City:</strong> {selectedAirport.city || 'N/A'}</p>
+          <p><strong>Country:</strong> {selectedAirport.country_name || 'N/A'}</p>
         </div>
       )}
 
       {/* Real-time Flight Info */}
       {selectedAirport && (
         <div style={{ marginTop: '30px' }}>
-          <h4>Live Departures from {selectedAirport?.iata_code}</h4>
+          <h4>Live Departures from {selectedAirport.iata_code}</h4>
           {flightLoading ? (
             <p>Loading flights...</p>
           ) : flights.length === 0 ? (
             <p>No real-time flight data available.</p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                    Flight
-                  </th>
-                  <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                    Airline
-                  </th>
-                  <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                    To
-                  </th>
-                  <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {flights.map((flight) => (
-                  <tr key={`${flight.flight.iata}-${flight.departure.estimated}`}>
-                    <td>{flight.flight.iata}</td>
-                    <td>{flight.airline.name}</td>
-                    <td>{flight.arrival?.iata || 'N/A'}</td>
-                    <td>{flight.flight_status}</td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>Flight</th>
+                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>Airline</th>
+                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>To</th>
+                    <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {flights.map((flight) => (
+                    <tr
+                      key={`${flight.flight?.iata || 'unknown'}-${flight.departure?.scheduled || flight.flight?.number || Math.random()}`}
+                    >
+                      <td>{flight.flight?.iata || 'N/A'}</td>
+                      <td>{flight.airline?.name || 'N/A'}</td>
+                      <td>{flight.arrival?.iata || 'N/A'}</td>
+                      <td>{flight.flight_status || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
