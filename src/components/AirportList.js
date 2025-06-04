@@ -3,6 +3,17 @@ import { useLocation } from '../components/LocationProvider';
 
 const API_KEY = process.env.REACT_APP_AVIATIONSTACK_KEY ?? '';
 
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = (val) => (val * Math.PI) / 180;
+  const R = 6371; 
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 const AirportList = () => {
   const { location, loading, error } = useLocation();
   const [airports, setAirports] = useState([]);
@@ -10,6 +21,7 @@ const AirportList = () => {
   const [flights, setFlights] = useState([]);
   const [airportError, setAirportError] = useState(null);
   const [flightLoading, setFlightLoading] = useState(false);
+  const [radius, setRadius] = useState(100); // default filter radius
 
   useEffect(() => {
     const fetchAirports = async () => {
@@ -17,14 +29,25 @@ const AirportList = () => {
 
       try {
         const res = await fetch(
-          `https://api.aviationstack.com/v1/airports?access_key=${API_KEY}&city=${encodeURIComponent(location.city)}&region=${encodeURIComponent(location.region)}&country_name=${encodeURIComponent(location.country)}`
+          `https://api.aviationstack.com/v1/airports?access_key=${API_KEY}&country_name=${encodeURIComponent(location.country)}`
         );
         const data = await res.json();
 
         if (data.data?.length > 0) {
-          setAirports(data.data);
-          setSelectedAirport(data.data[0]);
-          setAirportError(null);
+          const filtered = data.data.filter((airport) => {
+            if (!airport.latitude || !airport.longitude) return false;
+            const dist = haversineDistance(
+              location.lat,
+              location.lon,
+              airport.latitude,
+              airport.longitude
+            );
+            return dist <= radius;
+          });
+
+          setAirports(filtered);
+          setSelectedAirport(filtered[0] ?? null);
+          setAirportError(filtered.length ? null : `No airports found within ${radius} km of ${location.city}.`);
         } else {
           setAirportError(`No airports found for ${location.city}.`);
           setAirports([]);
@@ -38,7 +61,7 @@ const AirportList = () => {
     };
 
     fetchAirports();
-  }, [location]);
+  }, [location, radius]);
 
   useEffect(() => {
     const fetchFlights = async () => {
@@ -51,11 +74,7 @@ const AirportList = () => {
         );
         const data = await res.json();
 
-        if (data.data) {
-          setFlights(data.data.slice(0, 10));
-        } else {
-          setFlights([]);
-        }
+        setFlights(data.data?.slice(0, 10) ?? []);
       } catch (err) {
         console.error('Failed to fetch flight data:', err);
         setFlights([]);
@@ -78,6 +97,23 @@ const AirportList = () => {
         Airports near {location?.city}, {location?.country} ({airports.length})
       </h2>
 
+      {/* Radius Filter */}
+      <div style={{ marginBottom: '10px' }}>
+        <label htmlFor="radius">Filter radius: </label>
+        <select
+          id="radius"
+          value={radius}
+          onChange={(e) => setRadius(Number(e.target.value))}
+        >
+          {[50, 70, 100, 120, 250, 500, 1000].map((r) => (
+            <option key={r} value={r}>
+              {r} km
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Airport List Buttons */}
       <div style={{ display: 'flex', gap: '10px', margin: '10px 0', flexWrap: 'wrap' }}>
         {airports.map((airport) => (
           <button
