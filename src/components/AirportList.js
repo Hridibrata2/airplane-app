@@ -5,7 +5,7 @@ const API_KEY = process.env.REACT_APP_AVIATIONSTACK_KEY ?? '';
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const toRad = (val) => (val * Math.PI) / 180;
-  const R = 6371; 
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -16,12 +16,14 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 
 const AirportList = () => {
   const { location, loading, error } = useLocation();
+  const [allAirports, setAllAirports] = useState([]);
   const [airports, setAirports] = useState([]);
   const [selectedAirport, setSelectedAirport] = useState(null);
   const [flights, setFlights] = useState([]);
   const [airportError, setAirportError] = useState(null);
   const [flightLoading, setFlightLoading] = useState(false);
-  const [radius, setRadius] = useState(100); // default filter radius
+  const [radius, setRadius] = useState(100);
+
 
   useEffect(() => {
     const fetchAirports = async () => {
@@ -34,34 +36,47 @@ const AirportList = () => {
         const data = await res.json();
 
         if (data.data?.length > 0) {
-          const filtered = data.data.filter((airport) => {
-            if (!airport.latitude || !airport.longitude) return false;
-            const dist = haversineDistance(
-              location.lat,
-              location.lon,
-              airport.latitude,
-              airport.longitude
-            );
-            return dist <= radius;
-          });
-
-          setAirports(filtered);
-          setSelectedAirport(filtered[0] ?? null);
-          setAirportError(filtered.length ? null : `No airports found within ${radius} km of ${location.city}.`);
+          setAllAirports(data.data);
+          setAirportError(null);
         } else {
+          setAllAirports([]);
           setAirportError(`No airports found for ${location.city}.`);
-          setAirports([]);
-          setSelectedAirport(null);
         }
       } catch (err) {
+        setAllAirports([]);
         setAirportError('Failed to fetch airport data.');
-        setAirports([]);
-        setSelectedAirport(null);
       }
     };
 
     fetchAirports();
-  }, [location, radius]);
+  }, [location]);
+
+  useEffect(() => {
+    if (!location || !allAirports.length) return;
+
+    const filtered = allAirports.filter((airport) => {
+      if (!airport.latitude || !airport.longitude) return false;
+
+      const dist = haversineDistance(
+        location.lat,
+        location.lon,
+        airport.latitude,
+        airport.longitude
+      );
+
+      return dist <= radius;
+    });
+
+    setAirports(filtered);
+    setSelectedAirport(filtered[0] ?? null);
+
+    if (filtered.length === 0) {
+      setAirportError(`No airports found within ${radius} km of ${location.city}.`);
+    } else {
+      setAirportError(null);
+    }
+  }, [radius, allAirports, location]);
+
 
   useEffect(() => {
     const fetchFlights = async () => {
@@ -73,7 +88,6 @@ const AirportList = () => {
           `https://api.aviationstack.com/v1/flights?access_key=${API_KEY}&dep_iata=${selectedAirport.iata_code}`
         );
         const data = await res.json();
-
         setFlights(data.data?.slice(0, 10) ?? []);
       } catch (err) {
         console.error('Failed to fetch flight data:', err);
@@ -97,7 +111,7 @@ const AirportList = () => {
         Airports near {location?.city}, {location?.country} ({airports.length})
       </h2>
 
-      {/* Radius Filter */}
+     
       <div style={{ marginBottom: '10px' }}>
         <label htmlFor="radius">Filter radius: </label>
         <select
